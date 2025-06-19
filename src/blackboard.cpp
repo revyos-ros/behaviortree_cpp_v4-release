@@ -143,6 +143,10 @@ void Blackboard::createEntry(const std::string& key, const TypeInfo& info)
 {
   if(StartWith(key, '@'))
   {
+    if(key.find('@', 1) != std::string::npos)
+    {
+      throw LogicError("Character '@' used multiple times in the key");
+    }
     rootBlackboard()->createEntryImpl(key.substr(1, key.size() - 1), info);
   }
   else
@@ -172,7 +176,7 @@ void Blackboard::cloneInto(Blackboard& dst) const
     auto it = dst_storage.find(src_key);
     if(it != dst_storage.end())
     {
-      // overwite
+      // overwrite
       auto& dst_entry = it->second;
       dst_entry->string_converter = src_entry->string_converter;
       dst_entry->value = src_entry->value;
