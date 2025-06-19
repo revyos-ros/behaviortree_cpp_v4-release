@@ -109,8 +109,8 @@ public:
   Tree(const Tree&) = delete;
   Tree& operator=(const Tree&) = delete;
 
-  Tree(Tree&& other);
-  Tree& operator=(Tree&& other);
+  Tree(Tree&& other) = default;
+  Tree& operator=(Tree&& other) = default;
 
   void initialize();
 
@@ -118,10 +118,14 @@ public:
 
   [[nodiscard]] TreeNode* rootNode() const;
 
-  /// Sleep for a certain amount of time.
-  /// This sleep could be interrupted by the method
-  /// TreeNode::emitWakeUpSignal()
-  void sleep(std::chrono::system_clock::duration timeout);
+  /**
+    * @brief Sleep for a certain amount of time. This sleep could be interrupted by the method TreeNode::emitWakeUpSignal()
+    *
+    * @param timeout  duration of the sleep
+    * @return         true if the timeout was NOT reached and the signal was received.
+    *
+    * */
+  bool sleep(std::chrono::system_clock::duration timeout);
 
   ~Tree();
 
@@ -145,7 +149,7 @@ public:
   [[nodiscard]] Blackboard::Ptr rootBlackboard();
 
   //Call the visitor for each node of the tree.
-  void applyVisitor(const std::function<void(const TreeNode*)>& visitor);
+  void applyVisitor(const std::function<void(const TreeNode*)>& visitor) const;
 
   //Call the visitor for each node of the tree.
   void applyVisitor(const std::function<void(TreeNode*)>& visitor);
@@ -211,8 +215,8 @@ public:
   BehaviorTreeFactory(const BehaviorTreeFactory& other) = delete;
   BehaviorTreeFactory& operator=(const BehaviorTreeFactory& other) = delete;
 
-  BehaviorTreeFactory(BehaviorTreeFactory&& other) noexcept;
-  BehaviorTreeFactory& operator=(BehaviorTreeFactory&& other) noexcept;
+  BehaviorTreeFactory(BehaviorTreeFactory&& other) noexcept = default;
+  BehaviorTreeFactory& operator=(BehaviorTreeFactory&& other) noexcept = default;
 
   /// Remove a registered ID.
   bool unregisterBuilder(const std::string& ID);
@@ -275,9 +279,8 @@ public:
   /**
      * @brief registerFromROSPlugins finds all shared libraries that export ROS plugins for behaviortree_cpp, and calls registerFromPlugin for each library.
      * @throws If not compiled with ROS support or if the library cannot load for any reason
-     *
      */
-  void registerFromROSPlugins();
+  [[deprecated("Removed support for ROS1")]] void registerFromROSPlugins();
 
   /**
      * @brief registerBehaviorTreeFromFile.
@@ -466,12 +469,13 @@ public:
 
   void clearSubstitutionRules();
 
-  using SubstitutionRule = std::variant<std::string, TestNodeConfig>;
+  using SubstitutionRule =
+      std::variant<std::string, TestNodeConfig, std::shared_ptr<TestNodeConfig>>;
 
   /**
    * @brief addSubstitutionRule replace a node with another one when the tree is
    * created.
-   * If the rule ia a string, we will use a diferent node type (already registered)
+   * If the rule ia a string, we will use a different node type (already registered)
    * instead.
    * If the rule is a TestNodeConfig, a test node with that configuration will be created instead.
    *
@@ -522,7 +526,7 @@ std::vector<Blackboard::Ptr> BlackboardBackup(const BT::Tree& tree);
  * @brief BlackboardRestore uses Blackboard::cloneInto to restore
  * all the blackboards of the tree
  *
- * @param backup a vectror of blackboards
+ * @param backup a vector of blackboards
  * @param tree the destination
  */
 void BlackboardRestore(const std::vector<Blackboard::Ptr>& backup, BT::Tree& tree);
