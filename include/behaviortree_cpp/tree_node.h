@@ -41,6 +41,7 @@ struct TreeNodeManifest
 };
 
 using PortsRemapping = std::unordered_map<std::string, std::string>;
+using NonPortAttributes = std::unordered_map<std::string, std::string>;
 
 enum class PreCond
 {
@@ -50,6 +51,10 @@ enum class PreCond
   SKIP_IF,
   WHILE_TRUE,
   COUNT_
+};
+
+static const std::array<std::string, 4> PreCondNames = {  //
+  "_failureIf", "_successIf", "_skipIf", "_while"
 };
 
 enum class PostCond
@@ -62,11 +67,15 @@ enum class PostCond
   COUNT_
 };
 
-template <>
-[[nodiscard]] std::string toStr<BT::PostCond>(const BT::PostCond& status);
+static const std::array<std::string, 4> PostCondNames = {  //
+  "_onHalted", "_onFailure", "_onSuccess", "_post"
+};
 
 template <>
-[[nodiscard]] std::string toStr<BT::PreCond>(const BT::PreCond& status);
+[[nodiscard]] std::string toStr<BT::PostCond>(const BT::PostCond& cond);
+
+template <>
+[[nodiscard]] std::string toStr<BT::PreCond>(const BT::PreCond& cond);
 
 using ScriptingEnumsRegistry = std::unordered_map<std::string, int>;
 
@@ -84,9 +93,13 @@ struct NodeConfig
   // output ports
   PortsRemapping output_ports;
 
+  // Any other attributes found in the xml that are not parsed as ports
+  // or built-in identifier (e.g. anything with a leading '_')
+  NonPortAttributes other_attributes;
+
   const TreeNodeManifest* manifest = nullptr;
 
-  // Numberic unique identifier
+  // Numeric unique identifier
   uint16_t uid = 0;
   // Unique human-readable name, that encapsulate the subtree
   // hierarchy, for instance, given 2 nested trees, it should be:
@@ -196,7 +209,7 @@ public:
    *     NodeStatus myCallback(TreeNode& node, NodeStatus status)
    *
    * This callback is executed AFTER the tick() and, if it returns SUCCESS or FAILURE,
-   * the value returned by the actual tick() is overriden with this one.
+   * the value returned by the actual tick() is overridden with this one.
    */
   void setPostTickFunction(PostTickCallback callback);
 
@@ -238,7 +251,7 @@ public:
 
   /**
    * @brief getInputStamped is similar to getInput(dey, destination),
-   * but it returne also the Timestamp object, that can be used to check if
+   * but it returns also the Timestamp object, that can be used to check if
    * a value was updated and when.
    *
    * @param key   the name of the port.
@@ -285,7 +298,7 @@ public:
    * @brief setOutput modifies the content of an Output port
    * @param key    the name of the port.
    * @param value  new value
-   * @return       valid Result, if succesful.
+   * @return       valid Result, if successful.
    */
   template <typename T>
   Result setOutput(const std::string& key, const T& value);
@@ -585,7 +598,8 @@ inline Result TreeNode::setOutput(const std::string& key, const T& value)
 
   if constexpr(std::is_same_v<BT::Any, T>)
   {
-    if(config().manifest->ports.at(key).type() != typeid(BT::Any))
+    auto port_type = config().manifest->ports.at(key).type();
+    if(port_type != typeid(BT::Any) && port_type != typeid(BT::AnyTypeAllowed))
     {
       throw LogicError("setOutput<Any> is not allowed, unless the port "
                        "was declared using OutputPort<Any>");
